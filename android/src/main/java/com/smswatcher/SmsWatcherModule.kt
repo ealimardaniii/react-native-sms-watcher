@@ -1,23 +1,50 @@
 package com.smswatcher
 
 import com.facebook.react.bridge.ReactApplicationContext
-import com.facebook.react.module.annotations.ReactModule
+import com.facebook.react.bridge.ReactContextBaseJavaModule
+import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.ReadableArray
+import com.facebook.react.bridge.Promise
+import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.WritableArray
 
-@ReactModule(name = SmsWatcherModule.NAME)
 class SmsWatcherModule(reactContext: ReactApplicationContext) :
-  NativeSmsWatcherSpec(reactContext) {
+    ReactContextBaseJavaModule(reactContext) {
 
-  override fun getName(): String {
-    return NAME
-  }
+    companion object {
+        var targetNumbers: MutableList<String> = mutableListOf()
+    }
 
-  // Example method
-  // See https://reactnative.dev/docs/native-modules-android
-  override fun multiply(a: Double, b: Double): Double {
-    return a * b
-  }
+    override fun getName(): String = "SmsWatcherModule"
 
-  companion object {
-    const val NAME = "SmsWatcher"
-  }
+    @ReactMethod
+    fun setTargetNumbers(nums: ReadableArray) {
+        targetNumbers = nums.toArrayList().map { it.toString() }.toMutableList()
+    }
+
+    @ReactMethod
+    fun addTargetNumber(num: String) {
+        if (!targetNumbers.contains(num)) {
+        targetNumbers.add(num)
+        }
+    }
+
+    @ReactMethod
+    fun removeTargetNumber(num: String) {
+        targetNumbers.remove(num)
+    }
+
+    @ReactMethod
+    fun clearTargetNumbers() {
+        targetNumbers.clear()
+    }
+
+    @ReactMethod
+    fun getTargetNumbers(promise: Promise) {
+        val arr: WritableArray = Arguments.createArray()
+        for (num in targetNumbers) {
+        arr.pushString(num)
+        }
+        promise.resolve(arr)
+    }
 }

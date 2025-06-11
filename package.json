@@ -1,9 +1,15 @@
 {
   "name": "react-native-sms-watcher",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "watch sms",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
+  "react-native": {
+    "android": {
+      "sourceDir": "android",
+      "manifestPath": "android/src/main/AndroidManifest.xml"
+    }
+  },
   "exports": {
     ".": {
       "source": "./src/index.tsx",
@@ -86,7 +92,7 @@
   },
   "peerDependencies": {
     "react": "*",
-    "react-native": "*"
+    "react-native": ">=0.60"
   },
   "workspaces": [
     "example"
@@ -160,5 +166,12 @@
     "languages": "kotlin-objc",
     "type": "turbo-module",
     "version": "0.50.3"
+  },
+  "dependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.34.0",
+    "eslint-plugin-ft-flow": "^3.0.11",
+    "eslint-plugin-jest": "^28.13.3",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-native": "^5.0.0"
   }
 }

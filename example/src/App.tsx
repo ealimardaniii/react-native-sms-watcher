@@ -1,20 +1,79 @@
-import { Text, View, StyleSheet } from 'react-native';
-import { multiply } from 'react-native-sms-watcher';
-
-const result = multiply(3, 7);
+import { useEffect, useState } from 'react';
+import {
+  View,
+  PermissionsAndroid,
+  StyleSheet,
+  Button,
+  Alert,
+  TextInput,
+  SafeAreaView,
+  StatusBar,
+} from 'react-native';
+import {
+  addWatchedNumber,
+  clearWatchedNumbers,
+  getWatchedNumbers,
+} from 'react-native-sms-watcher';
 
 export default function App() {
+  const [number, setNumber] = useState('');
+
+  useEffect(() => {
+    PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECEIVE_SMS);
+    addWatchedNumber('6505551213');
+  }, []);
+
+  const handlePressWatchedNumbers = () => {
+    getWatchedNumbers()
+      .then((list) => {
+        Alert.alert('Watched numbers', JSON.stringify(list));
+      })
+      .catch(() => {
+        Alert.alert('Error occured');
+      });
+  };
+
+  const handlePressAddWatchedNumber = () => {
+    addWatchedNumber(number);
+    setNumber('');
+  };
+
   return (
-    <View style={styles.container}>
-      <Text>Result: {result}</Text>
-    </View>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+      <Button title="Get watched numbers" onPress={handlePressWatchedNumbers} />
+      <View style={styles.separator} />
+      <TextInput
+        value={number}
+        onChangeText={setNumber}
+        placeholder="Enter number"
+        style={styles.input}
+        keyboardType="phone-pad"
+      />
+      <Button
+        disabled={!number}
+        title="Add watched number"
+        onPress={handlePressAddWatchedNumber}
+      />
+      <View style={styles.separator} />
+      <Button title="Clear watched numbers" onPress={clearWatchedNumbers} />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    flex: 1,
+  },
+  separator: {
+    marginBottom: 12,
+  },
+  input: {
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'grey',
+    width: '50%',
   },
 });
