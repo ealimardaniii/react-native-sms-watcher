@@ -129,4 +129,4 @@ export default function App() {
 
 ## License
 
-MIT © Your Name
+MIT © Erfan Alimarfani
