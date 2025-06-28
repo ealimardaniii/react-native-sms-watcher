@@ -20,7 +20,6 @@ export default function App() {
 
   useEffect(() => {
     PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECEIVE_SMS);
-    addWatchedNumber('6505551213');
   }, []);
 
   const handlePressWatchedNumbers = () => {
