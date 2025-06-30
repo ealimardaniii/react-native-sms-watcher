@@ -32,7 +32,8 @@ class SmsWatcherReceiver : BroadcastReceiver() {
       val fullMessage = messages.joinToString("") { it.messageBody }
 
       val serviceIntent = Intent(context, SmsHeadlessService::class.java).apply {
-        putExtra("message", fullMessage)
+          putExtra("message", fullMessage)
+          putExtra("address", sender)
       }
       context.startService(serviceIntent)
       HeadlessJsTaskService.acquireWakeLockNow(context)

@@ -7,11 +7,13 @@ import com.facebook.react.jstasks.HeadlessJsTaskConfig
 
 class SmsHeadlessService : HeadlessJsTaskService() {
   override fun getTaskConfig(intent: Intent?): HeadlessJsTaskConfig? {
-    val data = intent?.getStringExtra("message") ?: return null
+  val message = intent?.getStringExtra("message") ?: return null
+  val address = intent.getStringExtra("address") ?: "unknown"
 
-    val extras = Arguments.createMap().apply {
-      putString("message", data)
-    }
+  val extras = Arguments.createMap().apply {
+    putString("message", message)
+    putString("address", address)
+  }
 
     // Return the Headless task configuration
     return HeadlessJsTaskConfig(

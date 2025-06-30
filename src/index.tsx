@@ -3,6 +3,11 @@ import { NativeModules, Platform } from 'react-native';
 const isAndroid = Platform.OS === 'android';
 const SmsWatcherModule = isAndroid ? NativeModules.SmsWatcherModule : null;
 
+export type SmsBackgroundTaskData = {
+  message: string;
+  address: string;
+};
+
 export function setWatchedNumbers(numbers: string[]) {
   if (!isAndroid || !SmsWatcherModule) return;
   SmsWatcherModule.setTargetNumbers(numbers);
