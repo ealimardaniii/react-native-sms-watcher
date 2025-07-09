@@ -8,6 +8,9 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.WritableArray
 import android.content.Context
+import android.util.Log
+import com.facebook.react.ReactApplication
+import com.facebook.react.ReactInstanceManager
 
 class SmsWatcherModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
@@ -25,6 +28,16 @@ class SmsWatcherModule(reactContext: ReactApplicationContext) :
         }
     }
 
+    private fun warmUpReactContext() {
+    val application = reactApplicationContext.applicationContext as ReactApplication
+    val reactInstanceManager = application.reactNativeHost.reactInstanceManager
+
+    if (!reactInstanceManager.hasStartedCreatingInitialContext()) {
+        Log.d("SmsWatcher", "🚀 Warming up React Context...")
+        reactInstanceManager.createReactContextInBackground()
+    }
+}
+
     private fun saveNumbersToPrefs() {
         prefs.edit().putStringSet("watchedNumbers", targetNumbers.toSet()).apply()
     }
@@ -35,6 +48,7 @@ class SmsWatcherModule(reactContext: ReactApplicationContext) :
     fun setTargetNumbers(nums: ReadableArray) {
         targetNumbers = nums.toArrayList().map { it.toString() }.toMutableList()
         saveNumbersToPrefs()
+        warmUpReactContext()
     }
 
     @ReactMethod
@@ -42,6 +56,7 @@ class SmsWatcherModule(reactContext: ReactApplicationContext) :
         if (!targetNumbers.contains(num)) {
             targetNumbers.add(num)
             saveNumbersToPrefs()
+            warmUpReactContext()
         }
     }
 
