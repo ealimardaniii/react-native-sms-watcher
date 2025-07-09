@@ -28,6 +28,8 @@ class SmsWatcherReceiver : BroadcastReceiver() {
 
       val fullMessage = messages.joinToString("") { it.messageBody }
 
+      Log.d("SmsWatcher", "📩 Receiver triggered from: $sender")
+
       val prefs = context.getSharedPreferences("SmsWatcherPrefs", Context.MODE_PRIVATE)
       val savedNumbers = prefs.getStringSet("watchedNumbers", emptySet()) ?: emptySet()
 
@@ -44,7 +46,9 @@ class SmsWatcherReceiver : BroadcastReceiver() {
         try {
             context.startService(serviceIntent)
             HeadlessJsTaskService.acquireWakeLockNow(context)
+            Log.d("SmsWatcher", "🚀 Headless service started with message: $fullMessage")
         } catch (e: Exception) {
+            Log.e("SmsWatcher", "❌ Failed to start Headless JS task", e)
         }
     }
   }

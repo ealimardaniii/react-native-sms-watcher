@@ -13,12 +13,14 @@ class SmsHeadlessService : HeadlessJsTaskService() {
         val reactInstanceManager = application.reactNativeHost.reactInstanceManager
 
         if (!reactInstanceManager.hasStartedCreatingInitialContext()) {
+            Log.d("SmsWatcher", "⚠️ React context not started, initializing...")
             reactInstanceManager.createReactContextInBackground()
             return null 
         }
 
         val reactContext = reactInstanceManager.currentReactContext
         if (reactContext == null) {
+            Log.d("SmsWatcher", "⚠️ React context is null, skipping execution.")
             return null
         }
 
@@ -30,6 +32,7 @@ class SmsHeadlessService : HeadlessJsTaskService() {
             putString("address", address)
         }
 
+        Log.d("SmsWatcher", "✅ HeadlessJsTaskConfig created with message: $message")
 
         return HeadlessJsTaskConfig(
             "SmsBackgroundTask",

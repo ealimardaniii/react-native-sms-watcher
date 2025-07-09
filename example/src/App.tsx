@@ -8,6 +8,8 @@ import {
   TextInput,
   SafeAreaView,
   StatusBar,
+  NativeModules,
+  Platform,
 } from 'react-native';
 import {
   addWatchedNumber,
@@ -34,7 +36,14 @@ export default function App() {
 
   const handlePressAddWatchedNumber = () => {
     addWatchedNumber(number);
+    warmUpHeadlessTask();
     setNumber('');
+  };
+
+  const warmUpHeadlessTask = () => {
+    if (Platform.OS === 'android' && NativeModules.HeadlessTaskStarter) {
+      NativeModules.HeadlessTaskStarter.start();
+    }
   };
 
   return (

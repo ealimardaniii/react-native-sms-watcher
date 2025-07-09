@@ -7,7 +7,7 @@ import com.facebook.react.uimanager.ViewManager
 
 class SmsWatcherPackage : ReactPackage {
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
-        return listOf(SmsWatcherModule(reactContext))
+        return listOf(SmsWatcherModule(reactContext), HeadlessTaskStarter(reactContext) )
     }
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {
