@@ -9,6 +9,7 @@ import android.provider.Telephony
 import android.telephony.SmsMessage
 import com.facebook.react.HeadlessJsTaskService
 import com.smswatcher.SmsWatcherModule
+import android.util.Log
 
 class SmsWatcherReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
@@ -25,18 +26,26 @@ class SmsWatcherReceiver : BroadcastReceiver() {
 
       val sender = messages[0].displayOriginatingAddress ?: return
 
-      if (!SmsWatcherModule.targetNumbers.any { sender.contains(it) }) {
-        return
+      val fullMessage = messages.joinToString("") { it.messageBody }
+
+      val prefs = context.getSharedPreferences("SmsWatcherPrefs", Context.MODE_PRIVATE)
+      val savedNumbers = prefs.getStringSet("watchedNumbers", emptySet()) ?: emptySet()
+
+      if (!savedNumbers.any { sender.contains(it) }) {
+          return
       }
 
-      val fullMessage = messages.joinToString("") { it.messageBody }
 
       val serviceIntent = Intent(context, SmsHeadlessService::class.java).apply {
           putExtra("message", fullMessage)
           putExtra("address", sender)
       }
-      context.startService(serviceIntent)
-      HeadlessJsTaskService.acquireWakeLockNow(context)
+
+        try {
+            context.startService(serviceIntent)
+            HeadlessJsTaskService.acquireWakeLockNow(context)
+        } catch (e: Exception) {
+        }
     }
   }
 }
