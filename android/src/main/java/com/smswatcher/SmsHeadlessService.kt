@@ -15,7 +15,7 @@ class SmsHeadlessService : HeadlessJsTaskService() {
         if (!reactInstanceManager.hasStartedCreatingInitialContext()) {
             Log.d("SmsWatcher", "⚠️ React context not started, initializing...")
             reactInstanceManager.createReactContextInBackground()
-            return null 
+            return null
         }
 
         val reactContext = reactInstanceManager.currentReactContext
@@ -37,8 +37,8 @@ class SmsHeadlessService : HeadlessJsTaskService() {
         return HeadlessJsTaskConfig(
             "SmsBackgroundTask",
             extras,
-            5000, // Timeout
-            true   // Allow in foreground & background
+            15000, // Timeout in ms
+            true   // Allow in foreground
         )
     }
 }
