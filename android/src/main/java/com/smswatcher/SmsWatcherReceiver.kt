@@ -12,6 +12,12 @@ import com.smswatcher.SmsWatcherModule
 import android.util.Log
 
 class SmsWatcherReceiver : BroadcastReceiver() {
+
+  private fun normalizeNumber(number: String): String {
+    val digits = number.filter { it.isDigit() }
+    return if (digits.length > 10) digits.takeLast(10) else digits
+  }
+
   override fun onReceive(context: Context, intent: Intent) {
 
     if (Telephony.Sms.Intents.SMS_RECEIVED_ACTION == intent.action) {
@@ -33,10 +39,12 @@ class SmsWatcherReceiver : BroadcastReceiver() {
       val prefs = context.getSharedPreferences("SmsWatcherPrefs", Context.MODE_PRIVATE)
       val savedNumbers = prefs.getStringSet("watchedNumbers", emptySet()) ?: emptySet()
 
-      if (!savedNumbers.any { sender.contains(it) }) {
-          return
-      }
+      val normalizedSender = normalizeNumber(sender)
+      val normalizedSaved = savedNumbers.map { normalizeNumber(it) }
 
+      if (!normalizedSaved.any { it == normalizedSender }) {
+        return
+      }
 
       val serviceIntent = Intent(context, SmsHeadlessService::class.java).apply {
           putExtra("message", fullMessage)
