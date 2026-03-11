@@ -9,6 +9,8 @@ import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactContext
 import com.facebook.react.jstasks.HeadlessJsTaskConfig
 import org.json.JSONObject
+import android.os.Handler
+import android.os.Looper
 
 class SmsHeadlessService : HeadlessJsTaskService() {
   private val prefsKey = "pending_sms"
@@ -25,18 +27,24 @@ class SmsHeadlessService : HeadlessJsTaskService() {
     if (reactContext == null || !reactContext.hasActiveCatalystInstance()) {
       Log.d("SmsWatcher", "⚠️ React context not ready, saving message to prefs")
       saveMessageToPrefs(applicationContext, message, address)
-
-      // ✅ New Arch: ask ReactHost to start (instead of createReactContextInBackground)
+    
       if (reactHost != null) {
         try {
           reactHost.start()
+    
+          Handler(Looper.getMainLooper()).postDelayed({
+            val ctx = reactHost.currentReactContext
+            if (ctx != null) {
+              Log.d("SmsWatcher", "✅ ReactContext ready, restoring pending messages")
+              restorePendingMessages(ctx)
+            }
+          }, 1500)
+    
         } catch (e: Exception) {
           Log.e("SmsWatcher", "❌ reactHost.start() failed", e)
         }
-      } else {
-        Log.w("SmsWatcher", "⚠ reactHost is null (New Arch may be disabled or not available).")
       }
-
+    
       return null
     }
 
