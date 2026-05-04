@@ -14,8 +14,44 @@ import android.util.Log
 class SmsWatcherReceiver : BroadcastReceiver() {
 
   private fun normalizeNumber(number: String): String {
-    val digits = number.filter { it.isDigit() }
-    return if (digits.length > 10) digits.takeLast(10) else digits
+    // Keep only digits — preserve full digit sequence so we can match by suffix.
+    return number.filter { it.isDigit() }
+  }
+
+  /**
+   * Returns true when the incoming sender matches one of the saved numbers.
+   * Handles:
+   *  - alphanumeric sender IDs (e.g. "BANK-MELLAT") — compared case-insensitively as raw strings
+   *  - short codes (e.g. "5000125") — matched by exact digit equality
+   *  - international vs. local formats — matched by suffix (last 7+ digits)
+   */
+  private fun isSenderWatched(rawSender: String, savedNumbers: Set<String>): Boolean {
+    if (savedNumbers.isEmpty()) return false
+
+    val senderDigits = normalizeNumber(rawSender)
+
+    // Alphanumeric sender ID: no digits at all, or mostly letters.
+    val senderIsAlphanumeric = rawSender.any { it.isLetter() }
+    if (senderIsAlphanumeric || senderDigits.isEmpty()) {
+      return savedNumbers.any { saved ->
+        saved.equals(rawSender, ignoreCase = true) ||
+          saved.trim().equals(rawSender.trim(), ignoreCase = true)
+      }
+    }
+
+    return savedNumbers.any { saved ->
+      val savedDigits = normalizeNumber(saved)
+      if (savedDigits.isEmpty()) return@any false
+
+      // Exact digit match (covers short codes and identical-length numbers).
+      if (savedDigits == senderDigits) return@any true
+
+      // Suffix match: compare the shorter digit string against the tail of the longer one.
+      // Require at least 7 digits to avoid false positives (e.g. "1234" matching anything).
+      val shorter = if (savedDigits.length <= senderDigits.length) savedDigits else senderDigits
+      val longer = if (savedDigits.length <= senderDigits.length) senderDigits else savedDigits
+      shorter.length >= 7 && longer.endsWith(shorter)
+    }
   }
 
   override fun onReceive(context: Context, intent: Intent) {
@@ -30,19 +66,20 @@ class SmsWatcherReceiver : BroadcastReceiver() {
       }
       if (messages.isEmpty()) return
 
-      val sender = messages[0].displayOriginatingAddress ?: return
+      // Prefer originatingAddress (raw) over displayOriginatingAddress (may be reformatted).
+      val sender = messages[0].originatingAddress
+        ?: messages[0].displayOriginatingAddress
+        ?: return
 
-      val fullMessage = messages.joinToString("") { it.messageBody }
+      val fullMessage = messages.joinToString("") { it.messageBody ?: "" }
 
       Log.d("SmsWatcher", "📩 Receiver triggered from: $sender")
 
       val prefs = context.getSharedPreferences("SmsWatcherPrefs", Context.MODE_PRIVATE)
       val savedNumbers = prefs.getStringSet("watchedNumbers", emptySet()) ?: emptySet()
 
-      val normalizedSender = normalizeNumber(sender)
-      val normalizedSaved = savedNumbers.map { normalizeNumber(it) }
-
-      if (!normalizedSaved.any { it == normalizedSender }) {
+      if (!isSenderWatched(sender, savedNumbers)) {
+        Log.d("SmsWatcher", "↪︎ Sender $sender not in watched list (${savedNumbers.size} saved); ignoring.")
         return
       }
 

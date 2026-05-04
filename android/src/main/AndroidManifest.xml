@@ -17,6 +17,6 @@
 
     <service
       android:name=".SmsHeadlessService"
-      android:exported="true"/>
+      android:exported="false"/>
   </application>
 </manifest>
