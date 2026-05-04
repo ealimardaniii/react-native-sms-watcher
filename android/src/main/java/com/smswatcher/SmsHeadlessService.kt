@@ -2,49 +2,102 @@ package com.smswatcher
 
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.facebook.react.HeadlessJsTaskService
 import com.facebook.react.ReactApplication
+import com.facebook.react.ReactInstanceManager
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactContext
 import com.facebook.react.jstasks.HeadlessJsTaskConfig
 import org.json.JSONObject
-import android.os.Handler
-import android.os.Looper
 
 class SmsHeadlessService : HeadlessJsTaskService() {
   private val prefsKey = "pending_sms"
+
+  /**
+   * Returns the current ReactContext if one exists, regardless of whether the host
+   * app is running the New Architecture (reactHost) or the Old Architecture
+   * (reactNativeHost.reactInstanceManager). Returns null if neither path is ready.
+   */
+  private fun currentReactContext(): ReactContext? {
+    val app = application as? ReactApplication ?: return null
+
+    // New Arch path
+    try {
+      val host = app.reactHost
+      if (host != null) {
+        host.currentReactContext?.let { return it }
+      }
+    } catch (e: Throwable) {
+      // reactHost may not exist on older RN versions — fall through to Old Arch.
+    }
+
+    // Old Arch path
+    return try {
+      app.reactNativeHost.reactInstanceManager.currentReactContext
+    } catch (e: Throwable) {
+      null
+    }
+  }
+
+  /**
+   * Asks RN to spin up the React context, on whichever architecture is in use,
+   * and runs [onReady] when (or shortly after) the context becomes available.
+   */
+  private fun startReactContextAndThen(onReady: (ReactContext) -> Unit) {
+    val app = application as? ReactApplication ?: return
+
+    // Try New Arch first
+    try {
+      val host = app.reactHost
+      if (host != null) {
+        host.start()
+        Handler(Looper.getMainLooper()).postDelayed({
+          host.currentReactContext?.let(onReady)
+        }, 1500)
+        return
+      }
+    } catch (e: Throwable) {
+      // fall through to Old Arch
+    }
+
+    // Old Arch fallback
+    try {
+      val rim = app.reactNativeHost.reactInstanceManager
+      val existing = rim.currentReactContext
+      if (existing != null) {
+        onReady(existing)
+        return
+      }
+      rim.addReactInstanceEventListener(object : ReactInstanceManager.ReactInstanceEventListener {
+        override fun onReactContextInitialized(context: ReactContext) {
+          rim.removeReactInstanceEventListener(this)
+          onReady(context)
+        }
+      })
+      rim.createReactContextInBackground()
+    } catch (e: Throwable) {
+      Log.e("SmsWatcher", "❌ Failed to start ReactInstanceManager", e)
+    }
+  }
 
   override fun getTaskConfig(intent: Intent?): HeadlessJsTaskConfig? {
     val message = intent?.getStringExtra("message") ?: return null
     val address = intent.getStringExtra("address") ?: ""
 
-    // ✅ New Arch path: use reactHost instead of reactNativeHost/reactInstanceManager
-    val app = application as? ReactApplication
-    val reactHost = app?.reactHost
-    val reactContext: ReactContext? = reactHost?.currentReactContext
+    val reactContext = currentReactContext()
 
     if (reactContext == null || !reactContext.hasActiveCatalystInstance()) {
       Log.d("SmsWatcher", "⚠️ React context not ready, saving message to prefs")
       saveMessageToPrefs(applicationContext, message, address)
-    
-      if (reactHost != null) {
-        try {
-          reactHost.start()
-    
-          Handler(Looper.getMainLooper()).postDelayed({
-            val ctx = reactHost.currentReactContext
-            if (ctx != null) {
-              Log.d("SmsWatcher", "✅ ReactContext ready, restoring pending messages")
-              restorePendingMessages(ctx)
-            }
-          }, 1500)
-    
-        } catch (e: Exception) {
-          Log.e("SmsWatcher", "❌ reactHost.start() failed", e)
-        }
+
+      startReactContextAndThen { ctx ->
+        Log.d("SmsWatcher", "✅ ReactContext ready, restoring pending messages")
+        restorePendingMessages(ctx)
       }
-    
+
       return null
     }
 

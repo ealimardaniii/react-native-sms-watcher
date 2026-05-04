@@ -23,6 +23,18 @@ class SmsWatcherModule(reactContext: ReactApplicationContext) : ReactContextBase
     prefs.edit().putStringSet("watchedNumbers", targetNumbers.toSet()).apply()
   }
 
+  private fun triggerWarmupService(context: Context) {
+    val intent = Intent(context, SmsHeadlessService::class.java).apply {
+      putExtra("message", "[warmup]")
+      putExtra("address", "bootstrap")
+    }
+    try {
+      context.startService(intent)
+    } catch (e: Exception) {
+      Log.e("SmsWatcher", "❌ Failed to trigger warmup service", e)
+    }
+  }
+
   private fun warmUpAndTriggerFakeTask() {
     val context = reactApplicationContext
     val app = context.applicationContext as? ReactApplication
@@ -32,39 +44,51 @@ class SmsWatcherModule(reactContext: ReactApplicationContext) : ReactContextBase
       return
     }
 
-    // New Arch: reactHost ممکنه nullable باشه
-    val reactHost = app.reactHost
-    if (reactHost == null) {
-      Log.w("SmsWatcher", "⚠ reactHost is null (New Arch may be disabled or not available).")
-      return
-    }
-
-    // ✅ درخواست آماده‌سازی RN (بدون ReactInstanceManager)
+    // ── New Arch path (reactHost) ─────────────────────────────────────────
     try {
-      reactHost.start()
-    } catch (e: Exception) {
-      Log.e("SmsWatcher", "❌ reactHost.start() failed", e)
-      return
+      val reactHost = app.reactHost
+      if (reactHost != null) {
+        try {
+          reactHost.start()
+        } catch (e: Exception) {
+          Log.e("SmsWatcher", "❌ reactHost.start() failed", e)
+        }
+
+        Handler(Looper.getMainLooper()).postDelayed({
+          if (reactHost.currentReactContext != null) {
+            Log.d("SmsWatcher", "✅ ReactContext is ready (New Arch), manually triggering JS")
+            triggerWarmupService(context)
+          } else {
+            Log.w("SmsWatcher", "⚠ Still no ReactContext after delay (New Arch).")
+          }
+        }, 2000)
+        return
+      }
+    } catch (e: Throwable) {
+      // fall through to Old Arch
     }
 
-    // مثل قبل: بعد از ۲ ثانیه اگر ReactContext آماده بود، سرویس رو trigger کن
-    Handler(Looper.getMainLooper()).postDelayed({
-      val currentReactContext = reactHost.currentReactContext
-      if (currentReactContext != null) {
-        Log.d("SmsWatcher", "✅ ReactContext is ready, manually triggering JS")
-        val intent = Intent(context, SmsHeadlessService::class.java).apply {
-          putExtra("message", "[warmup]")
-          putExtra("address", "bootstrap")
-        }
-        try {
-          context.startService(intent)
-        } catch (e: Exception) {
-          Log.e("SmsWatcher", "❌ Failed to trigger JS after ReactContext ready", e)
-        }
-      } else {
-        Log.w("SmsWatcher", "⚠ Still no ReactContext after delay.")
+    // ── Old Arch fallback (reactNativeHost.reactInstanceManager) ──────────
+    try {
+      val rim = app.reactNativeHost.reactInstanceManager
+      val existing = rim.currentReactContext
+      if (existing != null) {
+        Log.d("SmsWatcher", "✅ ReactContext already ready (Old Arch), triggering JS")
+        triggerWarmupService(context)
+        return
       }
-    }, 2000)
+
+      rim.addReactInstanceEventListener(object : com.facebook.react.ReactInstanceManager.ReactInstanceEventListener {
+        override fun onReactContextInitialized(reactContext: com.facebook.react.bridge.ReactContext) {
+          rim.removeReactInstanceEventListener(this)
+          Log.d("SmsWatcher", "✅ ReactContext initialized (Old Arch), triggering JS")
+          triggerWarmupService(context)
+        }
+      })
+      rim.createReactContextInBackground()
+    } catch (e: Throwable) {
+      Log.e("SmsWatcher", "❌ Failed to start ReactInstanceManager", e)
+    }
   }
 
   companion object {
